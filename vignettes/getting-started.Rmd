@@ -23,7 +23,7 @@ To download the eliteformR package, use devtools as seen below:
 ```{r, eval = FALSE}
 # Install from GitHub
 # install.packages("devtools")
-devtools::install_github("YOUR-GITHUB-ACCOUNT/eliteformR")
+devtools::install_github("EliteFormLLC/eliteformR")
 ```
 
 ## Creating Token

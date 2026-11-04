@@ -13,8 +13,8 @@ Description: R Package that acts as an api wrapper for version 2 of the Elite Fo
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-URL: https://github.com/MatthewLeeWilcox/eliteformR
-BugReports: https://github.com/MatthewLeeWilcox/eliteformR/issues
+URL: https://github.com/EliteFormLLC/eliteformR
+BugReports: https://github.com/EliteFormLLC/eliteformR/issues
 RoxygenNote: 7.3.2
 Imports: 
     openssl,
