@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         r-version: ['4.1.1']
@@ -27,15 +27,6 @@ jobs:
         with:
           r-version: ${{ matrix.r-version }}
           use-public-rspm: true
-
-      - name: System dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew install pkg-config openssl@3
-          echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I$(brew --prefix openssl@3)/include"           >> $GITHUB_ENV
-          echo "LDFLAGS=-L$(brew --prefix openssl@3)/lib"                >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
