@@ -2,9 +2,9 @@
 #'
 #' Holds EliteForm API credentials/metadata.
 #'
-#' @slot url Character scalar with the EliteForm base URL.
-#' @slot api_key Character scalar with the X-ApiKey value.
-#' @slot TEAM_ID Character (typically length-1) team identifier.
+#' @slot url Character scalar with the EliteForm API base URL.
+#' @slot api_key Character scalar with the API key.
+#' @slot TEAM_ID Numeric team identifier, NA until \code{\link{EF_UpdateTokenTeam}} sets it.
 #'
 #' @exportClass API_TOKEN
 #' @keywords classes

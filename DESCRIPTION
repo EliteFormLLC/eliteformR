@@ -1,7 +1,7 @@
 Package: eliteformR
 Type: Package
 Title: eliteformR
-Version: 1.0.0
+Version: 2.0.0
 Authors@R: c(
     person(
       "Matthew", "Wilcox",
@@ -9,19 +9,23 @@ Authors@R: c(
       role = c("aut", "cre")
     )
   )
-Description: R Package that acts as an api wrapper for Elite Form API. This package allows for user's to create custom applications and dashboards easier. 
+Description: R Package that acts as an api wrapper for version 2 of the Elite Form API. This package allows for user's to create custom applications and dashboards easier. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-URL: https://github.com/MatthewLeeWilcox/eliteformR, https://matthewleewilcox.github.io/eliteformR/
+URL: https://github.com/MatthewLeeWilcox/eliteformR
 BugReports: https://github.com/MatthewLeeWilcox/eliteformR/issues
 RoxygenNote: 7.3.2
 Imports: 
     openssl,
     httr,
     jsonlite,
-    methods
+    methods,
+    stats,
+    utils
 Suggests:
     knitr,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.1.7)
 VignetteBuilder: knitr
+Config/testthat/edition: 3

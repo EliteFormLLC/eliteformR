@@ -1,0 +1,125 @@
+---
+title: "Recipes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Recipes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Short answers to common questions, using only base R. Each one starts from a token with a team selected, as shown in the [Get Started Guide](getting-started.Rmd).
+
+```{r, eval = FALSE}
+library(eliteformR)
+
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
+token <- EF_UpdateTokenTeam(token, 1)
+
+sets <- EF_GetAllSets(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01")
+```
+
+# Add athlete and exercise names
+
+Sets, reps and maxes identify athletes and exercises by ID. A small helper adds the names to any of them. Fetch the two lookups once and reuse them, so that each result doesn't spend more requests.
+
+```{r, eval = FALSE}
+roster <- EF_GetAthleteInfo(token)
+exercises <- EF_GetExercises(token)
+
+add_names <- function(df) {
+  df <- merge(df, roster[, c("athleteId", "firstName", "lastName")], by = "athleteId", all.x = TRUE)
+  merge(df, exercises[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id", all.x = TRUE)
+}
+
+named_sets <- add_names(sets)
+```
+
+`all.x = TRUE` keeps a row whose athlete has since left the roster, with NA for the name. The roster leaves out archived athletes unless you pass `includeArchived = TRUE`.
+
+# Find each athlete's fastest set
+
+Paperless sets have no velocity, and `aggregate()` drops those rows from a formula on its own.
+
+```{r, eval = FALSE}
+aggregate(peakVelocity ~ athleteId + exerciseId, data = sets, FUN = max)
+```
+
+# Total the volume lifted per day
+
+Volume is weight times reps. A max-reps set checked off without a count has NA for `repsCompleted`, so it counts as zero here.
+
+```{r, eval = FALSE}
+sets$volume <- sets$actualWeight * sets$repsCompleted
+aggregate(volume ~ date + athleteId, data = sets, FUN = sum)
+```
+
+Weights are in each exercise's own unit, so check `weightUnit` from `EF_GetExercises()` before adding across exercises if your team uses both pounds and kilograms.
+
+# Compare what was lifted to the athlete's 1RM
+
+```{r, eval = FALSE}
+maxes <- EF_Get1RMs(token)
+
+relative <- merge(sets, maxes[, c("athleteId", "exerciseId", "result")], by = c("athleteId", "exerciseId"))
+relative$percentOf1RM <- relative$actualWeight / relative$result
+```
+
+To compare against the max as it stood at the time, pull the maxes with `dateBefore`, as in `EF_Get1RMs(token, dateBefore = "2026-08-01")`.
+
+# See how often reps hit their target
+
+`targetMetric` names the rep column the target applies to. This keeps to `absolute` targets, whose numbers are in the metric's own unit. The other bases are a fraction of one of the athlete's bests.
+
+```{r, eval = FALSE}
+reps <- EF_GetAllTrackedReps(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01")
+judged <- reps[!is.na(reps$targetMetric) & reps$targetBasis == "absolute", ]
+
+judged$value <- mapply(function(row, metric) judged[row, metric], seq_len(nrow(judged)), judged$targetMetric)
+judged$hit <- round(judged$value, 2) >= judged$targetMin &
+  (is.na(judged$targetMax) | round(judged$value, 2) <= judged$targetMax)
+
+aggregate(hit ~ athleteId, data = judged, FUN = mean)
+```
+
+# Save to a CSV
+
+`write.csv()` can't write the `reps` column, since each of its cells is a data frame. Remove the column first, and write reps to their own file.
+
+```{r, eval = FALSE}
+write.csv(sets[, names(sets) != "reps"], "sets.csv", row.names = FALSE)
+write.csv(EF_GetAllTrackedReps(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01"), "reps.csv", row.names = FALSE)
+```
+
+# Read more than a year
+
+One call can span at most 366 days, so read longer histories a year at a time. Each year may take several requests against your [rate limits](getting-started.Rmd#rate-limits).
+
+```{r, eval = FALSE}
+starts <- seq(as.Date("2023-01-01"), as.Date("2026-01-01"), by = "year")
+
+history <- do.call(rbind, lapply(starts, function(start) {
+  end <- seq(start, by = "year", length.out = 2)[2]
+  EF_GetAllSets(token, dateAfter = start, dateBefore = end)
+}))
+```
+
+# Handle errors in a scheduled job
+
+An API problem stops with the API's own message, including an ID you can quote to EliteForm support. Catch it if the job should carry on.
+
+```{r, eval = FALSE}
+sets <- tryCatch(
+  EF_GetAllSets(token),
+  error = function(e) {
+    message("Could not read sets: ", conditionMessage(e))
+    NULL
+  }
+)
+```

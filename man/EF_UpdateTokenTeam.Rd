@@ -7,9 +7,9 @@
 EF_UpdateTokenTeam(token, TEAM_ID)
 }
 \arguments{
-\item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}}}
+\item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
 
-\item{TEAM_ID}{Team Id referenced in  \code{\link{EF_GetTeamsList}}}
+\item{TEAM_ID}{Team id referenced in \code{\link{EF_GetTeamsList}}}
 }
 \value{
 Custom API Token Object
@@ -20,13 +20,8 @@ Must be saved as the token values ie token <- EF_UpdateTokenTeam(token, 1)
 }
 \examples{
 \dontrun{
-#Intialize Token
-token <- EF_CreateAPIToken("https://your.eliteform.com", "your-api-key")
-
-# Get Team ID
-Team_list <- EF_GetTeamsList(token)
-
-# Update Token with Team ID
-token <- EF_UpdateTokenTeam(token, TEAM_ID$TeamId)
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
+teams <- EF_GetTeamsList(token)
+token <- EF_UpdateTokenTeam(token, teams$id[1])
 }
 }

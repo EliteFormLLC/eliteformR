@@ -16,104 +16,62 @@ knitr::opts_chunk$set(
 
 This Guide will explain how to access an entire team's 1 rep max and 1 rep power max.
 
-
-
 # Set up API Token
 
-Below is the code to set up your API Token. Please reference the [Get Started Guide](getting-started.html).
+Below is the code to set up your API Token. Please reference the [Get Started Guide](getting-started.Rmd).
+
 ```{r , eval = FALSE}
 # Load the eliteformR package
 library(eliteformR)
 
-API_key <- "YOUR-API-KEY-HERE"
-URL <- "https://your_team_url_eliteform.com"
-
-token <- EF_CreateAPIToken(URL, API_key)
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
 
 # Download Team List
 team_list_df <- EF_GetTeamsList(token)
 
 # Update the Token with the Selected Team ID
-# TeamId should be as.numeric()
-token <- EF_UpdateTokenTeam(token, team_list_df$TeamId[1])
-# or 
+token <- EF_UpdateTokenTeam(token, team_list_df$id[1])
+# or
 # token <- EF_UpdateTokenTeam(token, 111)
 ```
 
 # Get Team's Current 1 Rep Max
 
-To gather your Team's current 1 rep maxes, you will require just the token. 
+To gather your Team's current 1 rep maxes, you will require just the token. `result` is in the exercise's weight unit, and `isPredicted` says whether the max was predicted by EliteForm or entered by a coach.
 
 ```{r, eval = FALSE}
 Team1RepMax_df <- EF_Get1RMs(token)
 
 Team1RepMax_df
 
-#           Date AthleteId     LastName FirstName    Exercise Result
-# 1     6/8/2023      4342       Player         1       SQUAT    450
-# 2     5/8/2023      4342       Player         1 POWER CLEAN    302
-# 3    7/12/2023      4342       Player         1 BENCH PRESS    356
-# 4    5/28/2024      4343       Player         2       SQUAT    100
-# 5    5/28/2024      4343       Player         2 POWER CLEAN    100
-# 6    5/28/2024      4343       Player         2 BENCH PRESS    100
-# 7    7/27/2025      4344       Player         3       SQUAT    360
-# 8    5/27/2025      4344       Player         3 POWER CLEAN    314
-# 9    7/29/2025      4344       Player         3 BENCH PRESS    320
+#     id athleteId exerciseId teamId result isPredicted       date
+# 1 4117        13         88      1    365       FALSE 2026-01-12
+# 2 4130        13         91      1    245       FALSE 2026-01-12
+# 3 4388         6         88      1    415        TRUE 2026-04-03
 
+# Only coach-entered maxes, as they stood on July 1
+EF_Get1RMs(token, isPredicted = FALSE, dateBefore = "2026-07-01")
 ```
 
-# Get Team's Current Power 1 Rep  Max
+# Get Team's Current Power 1 Rep Max
 
-To gather your Team's current power 1 rep maxes, you will require just the token. 
-
+To gather your Team's current power 1 rep maxes, you will require just the token. Power is in watts.
 
 ```{r, eval = FALSE}
 Power.Team1RepMax_df <- EF_GetPower1RMs(token)
 
 Power.Team1RepMax_df
 
-#           Date AthleteId     LastName FirstName    Exercise Result
-# 1     6/8/2023      4342       Player         1       SQUAT    450
-# 2     5/8/2023      4342       Player         1 POWER CLEAN    302
-# 3    7/12/2023      4342       Player         1 BENCH PRESS    356
-# 4    5/28/2024      4343       Player         2       SQUAT    100
-# 5    5/28/2024      4343       Player         2 POWER CLEAN    100
-# 6    5/28/2024      4343       Player         2 BENCH PRESS    100
-# 7    7/27/2025      4344       Player         3       SQUAT    360
-# 8    5/27/2025      4344       Player         3 POWER CLEAN    314
-# 9    7/29/2025      4344       Player         3 BENCH PRESS    320
-
+#    id athleteId exerciseId teamId averagePower peakPower       date
+# 1 912         6         95      1         1184      2310 2026-02-03
+# 2 913        13         95      1         1052      1975 2026-02-03
 ```
 
+# Adding Names
 
+Maxes identify athletes and exercises by ID. Join them to the roster and the exercise list for names and weight units:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r, eval = FALSE}
+named_df <- merge(Team1RepMax_df, EF_GetAthleteInfo(token)[, c("athleteId", "firstName", "lastName")], by = "athleteId")
+named_df <- merge(named_df, EF_GetExercises(token)[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id")
+```

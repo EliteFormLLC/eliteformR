@@ -10,11 +10,11 @@ Holds EliteForm API credentials/metadata.
 \section{Slots}{
 
 \describe{
-\item{\code{url}}{Character scalar with the EliteForm base URL.}
+\item{\code{url}}{Character scalar with the EliteForm API base URL.}
 
-\item{\code{api_key}}{Character scalar with the X-ApiKey value.}
+\item{\code{api_key}}{Character scalar with the API key.}
 
-\item{\code{TEAM_ID}}{Character (typically length-1) team identifier.}
+\item{\code{TEAM_ID}}{Numeric team identifier, NA until \code{\link{EF_UpdateTokenTeam}} sets it.}
 }}
 
 \keyword{classes}

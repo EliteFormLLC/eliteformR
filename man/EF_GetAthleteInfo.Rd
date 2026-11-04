@@ -4,29 +4,37 @@
 \alias{EF_GetAthleteInfo}
 \title{Get all Player Info for entire team}
 \usage{
-EF_GetAthleteInfo(token, date = "")
+EF_GetAthleteInfo(token, date = "", ...)
 }
 \arguments{
 \item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
 
-\item{date}{Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).}
+\item{date}{Any date within the desired season, which supplies each athlete's classification, as
+a Date or a string such as \code{"2025-07-28"} or \code{"07/28/2025"}. Defaults to the current date.}
+
+\item{...}{Other API filters and options by name: \code{includeArchived}, \code{sort}.}
 }
 \value{
 Returns a data frame with the following columns:
 \describe{
-  \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-  \item{LastName}{`character` — Athlete's last name}
-  \item{FirstName}{`character` — Athlete's first name}
-  \item{Positions}{`character` — Athlete's playing position(s)}
-  \item{Classification}{`character` — Athlete's roster classification (e.g., Freshman, Senior)}
-  \item{Categories}{`character` — Custom or predefined grouping categories (e.g., Returners, Injured)}
+  \item{athleteId}{`numeric` - Unique athlete identifier}
+  \item{firstName}{`character` - Athlete's first name}
+  \item{lastName}{`character` - Athlete's last name}
+  \item{archived}{`logical` - Whether the athlete is archived}
+  \item{positions}{`character` - Athlete's positions on this team, comma-separated}
+  \item{categories}{`character` - Athlete's categories on this team, comma-separated}
+  \item{classificationId}{`numeric` - Identifier of the classification}
+  \item{classificationName}{`character` - Athlete's classification (e.g., Freshman, Senior)}
 }
 }
 \description{
-Get basic information for all athletes on a team
+Get the roster of the token's team. Requires the ReadAthletes scope.
 }
-\details{
-If you don’t specify \code{date}, the current date will be used.
-  A date is required because the athletes belonging to a team can vary by season.
-  Any date within the desired season will work for specifying that season.
+\examples{
+\dontrun{
+roster <- EF_GetAthleteInfo(token)
+
+# Classifications from last season, including archived athletes
+roster <- EF_GetAthleteInfo(token, "2025-10-01", includeArchived = TRUE)
+}
 }

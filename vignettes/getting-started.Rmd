@@ -14,16 +14,16 @@ knitr::opts_chunk$set(
 )
 ```
 
-This package is built to help build custom solutions using EliteForm's API. Please reference your API Call limits before running calls within loops. Additionally, this package requires an EliteForm Account and X-API Key, so please consult with your EliteForm representative first.
+This package is built to help build custom solutions using version 2 of EliteForm's API. It requires an EliteForm account and an API key, so please consult with your EliteForm representative first. Keys for the original `/api/v1` endpoints do not work with this version of the package. If you are moving a script from version 1, see `NEWS.md` for what to change.
 
 ## Downloading Package
 
-To download the eliteformR package, either go to the <a href= "https://github.com/MatthewLeeWilcox/eliteformR">eliteformR Github Repo</a> or use devtools as seen below:
+To download the eliteformR package, use devtools as seen below:
 
 ```{r, eval = FALSE}
 # Install from GitHub
 # install.packages("devtools")
-devtools::install_github("MatthewLeeWilcox/eliteformR")
+devtools::install_github("YOUR-GITHUB-ACCOUNT/eliteformR")
 ```
 
 ## Creating Token
@@ -33,179 +33,64 @@ devtools::install_github("MatthewLeeWilcox/eliteformR")
 library(eliteformR)
 ```
 
-To create your API Token to allow the eliteformR package to interface with the Eliteform API, you must call `EF_CreateAPIToken()`. 
+To create your API Token, call `EF_CreateAPIToken()` with your key. The key identifies your organization, so no URL is needed. Treat the key like a password and keep it out of your scripts, for example in an environment variable.
 
 ```{r, eval = FALSE}
-# Define the access URL and X-API-Key
-URL <- "https://your.eliteform.com"
-X_API_KEY <- "your-api-key"
-
-# Intialize Token
-token <- EF_CreateAPIToken(URL, X_API_KEY)
-
+# Initialize Token
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
 ```
 
-
-Once the API Token has been initialized, you can begin to use the package. However, before you can pull data from an individual team, you must pull that Team ID and update your token with it.
-
+Once the API Token has been initialized, pull your Team IDs and update your token with the one you want.
 
 ```{r eval = FALSE}
-# Get all Team ID's
+# Get all Team IDs
 teams_df <- EF_GetTeamsList(token)
 
-teams_df 
+teams_df
 
-#   TeamId     Name
-# 1    111 Football
-# 1    112 Softball
-# 1    113 Baseball
-# 1    114   Soccer
+#   id     name
+# 1  1 Football
+# 2  2 Softball
 
 # Update the Token's Team ID
-token <- EF_UpdateTokenTeam(token, 111)
+token <- EF_UpdateTokenTeam(token, 1)
 # or
-token <- EF_UpdateTokenTeam(token, teams_df$TeamId[1])
-
+token <- EF_UpdateTokenTeam(token, teams_df$id[1])
 ```
 
-Now that the Token has been updated with the selected Team ID, you can begin running many of the other functions. An example is provided below that gets all sets from a particular day:
-
-```{r,eval = FALSE}
-# Get all Sets (Defaulted to Current Date and Paperless)
-all_sets_df <- EF_GetAllSets(token)
-
-# Get all sets for a specified date
-
-all_sets_df <- EF_GetAllSets(token, "07/22/2025")
-
-all_sets_df
-
-# AverageVelocity PeakVelocity AveragePower PeakPower      Date             Time AthleteId    LastName FirstName
-# 1        0.471111     0.921111     530.2178  1556.547 7/22/2025 11:41:13.6319597      4346     Athlete       1
-# 2        0.465000     1.423333     623.4000  1640.525 7/22/2025 11:40:26.4072519      5232     Athlete       2
-# 3        0.360000     0.748571     705.8743  1544.860 7/22/2025 11:39:37.1249414      6750     Athlete       3
-# 4        0.425000     1.268333     548.3500  1929.968 7/22/2025 11:39:36.0497881      4233     Athlete       4
-# 5        0.432857     0.895714     568.7771  1444.509 7/22/2025 11:39:33.7107749      4246     Athlete       5
-# 6        0.440000     1.023333     668.0000  1738.980 7/22/2025 11:39:29.0596346      6744     Athlete       6
-#      Exercise SetNumber RepsAssigned RepsCompleted LoadFactor ActualWeight ActualRest ReactionTimeInMS    Work
-# 1 BENCH PRESS         5            1             9      0.875          310        353                0 7407.65
-# 2 BENCH PRESS         5            1             6      0.875          270        384                0 3552.91
-# 3 BENCH PRESS         5            1             7      0.875          350        239                0 5741.98
-# 4 BENCH PRESS         5            1             6      0.875          335        299                0 5850.81
-# 5 BENCH PRESS         5            1             7      0.875          285        344                0 4253.00
-# 6 BENCH PRESS         5            1             3      0.875          365        210                0 2546.26
-
-# Get all Sets for a specific date and Not Paperless
-
-all_sets_df <- EF_GetAllSets(token, "07/22/2025", includePaperless = 0)
-
-all_sets_df
-
-#   AverageVelocity PeakVelocity AveragePower PeakPower      Date             Time AthleteId    LastName FirstName    Exercise SetNumber RepsAssigned RepsCompleted
-# 1        0.471111     0.921111     650.2178  1266.547 7/22/2025 11:41:13.6319597      4346     Athlete         1 BENCH PRESS         5            1             9
-# 2        0.465000     1.423333     556.4000  1710.525 7/22/2025 11:40:26.4072519      5232     Athlete         2 BENCH PRESS         5            1             6
-# 3        0.360000     0.748571     559.8743  1164.860 7/22/2025 11:39:37.1249414      6750     Athlete         3 BENCH PRESS         5            1             7
-# 4        0.425000     1.268333     634.3500  1889.968 7/22/2025 11:39:36.0497881      4233     Athlete         4 BENCH PRESS         5            1             6
-# 5        0.432857     0.895714     547.7771  1134.509 7/22/2025 11:39:33.7107749      4246     Athlete         5 BENCH PRESS         5            1             7
-# 6        0.440000     1.023333     715.0000  1658.980 7/22/2025 11:39:29.0596346      6744     Athlete         6 BENCH PRESS         5            1             3
-#   LoadFactor ActualWeight ActualRest ReactionTimeInMS    Work
-# 1      0.875          310        353                0 7107.65
-# 2      0.875          270        384                0 3652.91
-# 3      0.875          350        239                0 5641.98
-# 4      0.875          335        299                0 5150.81
-# 5      0.8This package is built to help build custom solutions using EliteForm's API. Please reference your API Call limits before running call's within loops. Additionally this package requires an EliteForm Account and X-API Key so talk with you EliteForm representative first!
-
-## Downloading Package
-
-To download the eliteformR package, either go to the <a href= "https://github.com/MatthewLeeWilcox/eliteformR">eliteformR Github Repo</a> or use devtools as seen below:
+Now you can begin running the other functions. An example is provided below that gets all sets from a particular day:
 
 ```{r, eval = FALSE}
-# Install from GitHub
-# install.packages("devtools")
-devtools::install_github("MatthewLeeWilcox/eliteformR")
-```
-
-## Creating Token
-
-```{r setup, eval = FALSE}
-# Load the eliteformR package
-library(eliteformR)
-```
-
-To create your API Token to allow the eliteformR package to interface with the Eliteform API, you must call `EF_CreateAPIToken()`. 
-
-```{r, eval = FALSE}
-# Define the access url and X-API-Key
-url <- "https://your.eliteform.com"
-X_API_KEY <- "your-api-key"
-
-# Intialize Token
-token <- EF_CreateAPIToken(url, X_API_KEY)
-
-```
-
-Once the API Token has been initialized, you can begin to use the package. However, before you can pull data from an individual team, you must pull that Team ID and update your token with it.
-
-```{r eval = FALSE}
-# Get all Team ID's
-teams_df <- EF_GetTeamsList(token)
-
-teams_df 
-
-#   TeamId     Name
-# 1    111 Football
-# 1    112 Softball
-# 1    113 Baseball
-# 1    114   Soccer
-
-# Update the Token's Team ID
-token <- EF_UpdateTokenTeam(token, 111)
-# or
-token <- EF_UpdateTokenTeam(token, teams_df$TeamId[1])
-
-```
-
-Now that the Token has been updated with the selected Team Id, you can begin running many of the other functions. An example is provided below that get's all sets from a particular day:
-
-```{r,eval = FALSE}
-# Get all Sets (Defaulted to Current Date and Paperless)
+# Get the completed sets for today, including Paperless
 all_sets_df <- EF_GetAllSets(token)
 
-# Get all sets for a specified date
+# Get the completed sets for a specified date
+all_sets_df <- EF_GetAllSets(token, "08/03/2026")
 
-all_sets_df <- EF_GetAllSets(token, "07/22/2025")
+all_sets_df[, c("athleteId", "exerciseId", "setNumber", "repsCompleted", "actualWeight", "avgVelocity")]
 
-all_sets_df
-
-# AverageVelocity PeakVelocity AveragePower PeakPower      Date             Time AthleteId    LastName FirstName
-# 1        0.471111     0.921111     530.2178  1556.547 7/22/2025 11:41:13.6319597      4346     Athlete       1
-# 2        0.465000     1.423333     623.4000  1640.525 7/22/2025 11:40:26.4072519      5232     Athlete       2
-# 3        0.360000     0.748571     705.8743  1544.860 7/22/2025 11:39:37.1249414      6750     Athlete       3
-# 4        0.425000     1.268333     548.3500  1929.968 7/22/2025 11:39:36.0497881      4233     Athlete       4
-# 5        0.432857     0.895714     568.7771  1444.509 7/22/2025 11:39:33.7107749      4246     Athlete       5
-# 6        0.440000     1.023333     668.0000  1738.980 7/22/2025 11:39:29.0596346      6744     Athlete       6
-#      Exercise SetNumber RepsAssigned RepsCompleted LoadFactor ActualWeight ActualRest ReactionTimeInMS    Work
-# 1 BENCH PRESS         5            1             9      0.875          310        353                0 7407.65
-# 2 BENCH PRESS         5            1             6      0.875          270        384                0 3552.91
-# 3 BENCH PRESS         5            1             7      0.875          350        239                0 5741.98
-# 4 BENCH PRESS         5            1             6      0.875          335        299                0 5850.81
-# 5 BENCH PRESS         5            1             7      0.875          285        344                0 4253.00
-# 6 BENCH PRESS         5            1             3      0.875          365        210                0 2546.26
-
-# Get all Sets for a specific date and Not Paperless
-
-all_sets_df <- EF_GetAllSets(token, "07/22/2025", includePaperless = 0)
-
-all_sets_df
-
-#   AverageVelocity PeakVelocity AveragePower PeakPower      Date             Time AthleteId    LastName FirstName    Exercise SetNumber RepsAssigned RepsCompleted
-# 1        0.471111     0.921111     650.2178  1266.547 7/22/2025 11:41:13.6319597      4346     Athlete         1 BENCH PRESS         5            1             9
-# 2        0.465000     1.423333     556.4000  1710.525 7/22/2025 11:40:26.4072519      5232     Athlete         2 BENCH PRESS         5            1             6
-# 3        0.360000     0.748571     559.8743  1164.860 7/22/2025 11:39:37.1249414      6750     Athlete         3 BENCH PRESS         5            1             7
-# 4        0.425000     1.268333     634.3500  1889.968 7/22/2025 11:39:36.0497881      4233     Athlete         4 BENCH PRESS         5            1             6
-# 5        0.432857     0.895714     547.7771  1134.509 7/22/2025 11:39:33.7107749      4246     Athlete         5 BENCH PRESS         5            1             7
-# 6        0.440000     1.023333     715.0000  1658.980 7/22/2025 11:39:29.0596346      6744     Athlete         6 BENCH P75          285        344                0 4153.00
-# 6      0.875          365        210                0 2646.26
-
+#   athleteId exerciseId setNumber repsCompleted actualWeight avgVelocity
+# 1        13         95         1            23            0          NA
+# 2         6         88         1             5          225        0.61
+# 3         6         88         2             4          235        0.55
 ```
 
+## Getting Names
+
+Sets, reps and maxes identify athletes and exercises by ID. To add names, join them to the roster and the exercise list. These two calls need the `ReadAthletes` and `ReadTeams` scopes on your key.
+
+```{r, eval = FALSE}
+roster_df <- EF_GetAthleteInfo(token)
+exercises_df <- EF_GetExercises(token)
+
+named_sets_df <- merge(all_sets_df, roster_df[, c("athleteId", "firstName", "lastName")], by = "athleteId")
+named_sets_df <- merge(named_sets_df, exercises_df[, c("id", "name")], by.x = "exerciseId", by.y = "id")
+```
+
+## When There Is No Data
+
+A call that matches nothing returns a data frame with no rows and no columns, so check `nrow()` before using a column in a script that runs unattended.
+
+## Rate Limits
+
+Each key may make 60 requests per minute, 600 per hour and 1,200 per day by default. Every function pulls all pages of its results, at up to 1,000 rows per request, and each page counts as one request. If the per-minute limit is reached, the package waits and retries. A longer wait stops with an error. To read many days, pass a range as shown in [Getting all Reps and Sets](get-reps-and-sets.Rmd) rather than calling once per day.

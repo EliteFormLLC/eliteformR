@@ -1,366 +1,313 @@
 #' Elite Form API Login
 #'
-#' Implements Elite Form's Login using your “X-ApiKey” and your custom Elite Form URL
-#' @param url URL string
-#' @param api_key X-ApiKey string
-#' @return Returns an S4 Object that saves your X-ApiKey and URL and acts as a token for later pulls
+#' Creates the token every other function takes. Your organization comes from the key, so there is
+#' no organization URL any more. Keys issued for the original /api/v1 endpoints do not work here;
+#' ask your EliteForm representative for a new one.
+#' @param api_key API key string, in the form \code{ef_live_XXXXXXXXXXXX_your_secret_here}.
+#' @param url API base URL. Only change this to test against another environment.
+#' @return Returns an S4 Object that saves your API key and URL and acts as a token for later pulls
 #' @examples
 #' \dontrun{
-#' # Create an API token with your EliteForm URL and API key
-#' token <- EF_CreateAPIToken("https://your.eliteform.com", "your-api-key")
-#'
-#' # Access components of the token
-#' token@url
-#' token@api_key
+#' # Keep the key out of your scripts, e.g. in an environment variable
+#' token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
 #' }
+#' @importFrom methods new
 #' @export
-
-# EF_CreateAPIToken <- function(url,api_key ){
-#   setClass("API_TOKEN", slots=list(url="character", api_key="character", TEAM_ID = "numeric"))
-#   token <- new("API_TOKEN", url = url, api_key = api_key)
-#   return(token)
-# }
-EF_CreateAPIToken <- function(url, api_key) {
-  new("API_TOKEN", url = url, api_key = api_key, TEAM_ID = as.numeric(NA))
+EF_CreateAPIToken <- function(api_key, url = "https://api.eliteform.com") {
+  if (!is.character(api_key) || length(api_key) != 1 || !grepl("^ef_[a-z0-9]+_", api_key)) {
+    stop("api_key must be an EliteForm API v2 key, which starts with 'ef_'. ",
+         "The arguments changed in version 2.0.0: the key comes first and the URL is optional.",
+         call. = FALSE)
+  }
+  new("API_TOKEN", url = sub("/+$", "", url), api_key = api_key, TEAM_ID = NA_real_)
 }
-
-
 
 #' Get List of Teams
 #'
-#' Get team names and IDs for the entire user account.
+#' Get team names and IDs for the entire user account. Requires the ReadTeams scope.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}}).
 #' @return A data frame with the following columns:
 #' \describe{
-#'   \item{TeamId}{`numeric` (long) — Team unique identifier}
-#'   \item{Name}{`character` (string) — Team Name}
+#'   \item{id}{`numeric` - Team unique identifier}
+#'   \item{name}{`character` - Team Name}
 #' }
 #' @examples
 #' \dontrun{
-#' Download Team List
-#' Team_list <- EF_GetTeamsList(token)
+#' teams <- EF_GetTeamsList(token)
 #' }
 #' @export
-
-EF_GetTeamsList <- function(token){
-  pull_json <- httr::GET(
-    url = paste0(token@url, "/api/v1/getteamslist"),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  teams_df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(teams_df)
+EF_GetTeamsList <- function(token) {
+  ef_get_all(token, "/teams")
 }
 
 #' Update the Token Team Attribute
 #'
 #' Update the custom API Token to select the team to pull from.
 #' Must be saved as the token values ie token <- EF_UpdateTokenTeam(token, 1)
-#' @param token API Token Object (see \code{\link{EF_CreateAPIToken}}
-#' @param TEAM_ID Team Id referenced in  \code{\link{EF_GetTeamsList}}
+#' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
+#' @param TEAM_ID Team id referenced in \code{\link{EF_GetTeamsList}}
 #' @return Custom API Token Object
 #' @examples
 #' \dontrun{
-#' #Intialize Token
-#' token <- EF_CreateAPIToken("https://your.eliteform.com", "your-api-key")
-#'
-#' # Get Team ID
-#' Team_list <- EF_GetTeamsList(token)
-#'
-#' # Update Token with Team ID
-#' token <- EF_UpdateTokenTeam(token, TEAM_ID$TeamId)
+#' token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
+#' teams <- EF_GetTeamsList(token)
+#' token <- EF_UpdateTokenTeam(token, teams$id[1])
 #' }
 #' @export
-
-EF_UpdateTokenTeam <- function(token, TEAM_ID){
-  token@TEAM_ID <- TEAM_ID
-  return(token)
+EF_UpdateTokenTeam <- function(token, TEAM_ID) {
+  token@TEAM_ID <- as.numeric(TEAM_ID)
+  token
 }
 
-#' Convert Date to EliteForm Format
+#' Get All Exercises
 #'
-#' Convert a date string into EliteForm's required format: `"MMDDYYYY"` (no separators).
-#'
-#' @param date_str A character date string. Accepted formats include
-#'   \code{"\%m/\%d/\%Y"}, \code{"\%m-\%d-\%Y"}, \code{"\%m\%d\%Y"},
-#'   \code{"\%Y/\%m/\%d"}, \code{"\%Y-\%m-\%d"}, \code{"\%Y\%m\%d"}.
-#'
-#' @return A character string formatted as \code{"MMDDYYYY"}.
-#'
+#' Get the exercises defined on the token's team: the names and weight units behind the
+#' \code{exerciseId} on sets, reps and maxes. Requires the ReadTeams scope.
+#' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
+#' @param ... Other API filters and options by name, such as \code{teamId} or \code{sort}.
+#' @return Returns a data frame with the following columns:
+#' \describe{
+#'   \item{id}{`numeric` - Unique exercise identifier}
+#'   \item{teamId}{`numeric` - The team the exercise belongs to}
+#'   \item{name}{`character` - Name of the exercise}
+#'   \item{weightUnit}{`character` - "lb" or "kg", the unit of this exercise's weights and 1RMs}
+#' }
 #' @examples
-#' convert_to_MMddyyyy("2025-07-28")
-#' convert_to_MMddyyyy("07/28/2025")
+#' \dontrun{
+#' exercises <- EF_GetExercises(token)
 #'
+#' # Add exercise names to sets
+#' sets <- EF_GetAllSets(token, "08/03/2026")
+#' merge(sets, exercises[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id")
+#' }
 #' @export
-convert_to_MMddyyyy <- function(date_str) {
-  # Try parsing the input using multiple formats
-  parsed_date <- tryCatch({
-    as.Date(date_str, tryFormats = c("%m/%d/%Y", "%m-%d-%Y", "%m%d%Y",
-                                     "%Y/%m/%d", "%Y-%m-%d", "%Y%m%d"))
-  }, error = function(e) {
-    NA
-  })
-
-  # Check if parsing was successful
-  if (is.na(parsed_date)) {
-    stop("Error: Invalid date format. Please use a recognizable date format like YYYY-MM-DD or MM/DD/YYYY.")
-  }
-
-  # Format to "MMddyyyy"
-  formatted <- format(parsed_date, "%m%d%Y")
-  return(formatted)
+EF_GetExercises <- function(token, ...) {
+  filters <- ef_team_filter(token, ef_check_filters(list(...)))
+  ef_get_all(token, "/exercises", filters)
 }
 
 #' Get All Tracked Reps
 #'
-#' Get all tracked reps for a team on a specific date.
+#' Get every rep tracked at the rack for a team, on one workout day by default. Paperless sets have
+#' no reps; use \code{\link{EF_GetAllSets}} for those. Requires the ReadReps or ReadSets scope.
 #'
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
-#' @param date Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).
+#' @param date The workout day, as a Date or a string such as \code{"2025-07-28"} or
+#'   \code{"07/28/2025"}. Defaults to the current date.
+#' @param ... Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+#'   \code{sessionId}, \code{setId}, \code{sort}. For a range of days pass \code{dateAfter} and
+#'   \code{dateBefore} instead of \code{date}; the end is exclusive and a range spans at most 366 days.
 #'
-#' @return Returns a data frame with the following columns:
+#' @return Returns a data frame with one row per rep. Join \code{athleteId} to
+#'   \code{\link{EF_GetAthleteInfo}} and \code{exerciseId} to \code{\link{EF_GetExercises}} for names.
 #' \describe{
-#'   \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-#'   \item{Time}{`character` — Time the lift was performed (HH:MM)}
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Exercise}{`character` — Name of the exercise performed}
-#'   \item{Reps}{`integer` — Number of repetitions tracked}
-#'   \item{PeakVelocity}{`numeric` — Peak bar velocity (m/s)}
+#'   \item{id}{`numeric` - Unique rep identifier}
+#'   \item{setId, athleteId, teamId, sessionId, exerciseId}{`numeric` - What the rep belongs to}
+#'   \item{date}{`character` - Workout day (YYYY-MM-DD)}
+#'   \item{exerciseNumber, supersetPosition, setNumber, repNumber}{`integer` - Position on the workout card}
+#'   \item{occurredAtLocal}{`character` - When the set happened, on the rack's clock}
+#'   \item{targetMetric, targetBasis, targetMin, targetMax}{The target the rep was judged against, NA when none}
+#'   \item{duration}{`numeric` - Duration of the rep (s)}
+#'   \item{avgVelocity, peakVelocity}{`numeric` - Bar velocity (m/s)}
+#'   \item{avgPower, peakPower}{`numeric` - Power output (W)}
+#'   \item{work}{`numeric` - Work performed (J)}
+#'   \item{reactionTimeMs}{`integer` - Reaction time (ms)}
+#'   \item{eccentricDuration, eccentricAvgVelocity, eccentricPeakVelocity, eccentricAvgPower, eccentricPeakPower, eccentricWork}{`numeric` - The lowering phase, NA when not recorded}
 #' }
-#' @details
-#'If you don’t specify the date, the current date will be used.(These results do not include lifts that were entered through Paperless. For Paperless results, use \code{\link{EF_GetAllSets}} with includePaperless set.)
+#' @examples
+#' \dontrun{
+#' # Reps for today, then for one workout day
+#' reps <- EF_GetAllTrackedReps(token)
+#' reps <- EF_GetAllTrackedReps(token, "08/03/2026")
+#'
+#' # One athlete's reps of one exercise across a month
+#' reps <- EF_GetAllTrackedReps(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01",
+#'                              athleteId = 6, exerciseId = 88)
+#'
+#' # Each athlete's fastest rep
+#' aggregate(peakVelocity ~ athleteId, data = reps, FUN = max)
+#' }
 #' @export
-
-
-EF_GetAllTrackedReps <- function(token, date = ""){
-  request_url <- "/api/v1/GetAllTrackedReps/"
-  if(date != ""){
-    date = convert_to_MMddyyyy(date)
-    request <- paste0(request_url, token@TEAM_ID, "/",date)
-
-  } else {
-    request <- paste0(request_url, token@TEAM_ID,"/")
-
-  }
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+EF_GetAllTrackedReps <- function(token, date = "", ...) {
+  filters <- ef_date_window(date, ef_team_filter(token, ef_check_filters(list(...))))
+  ef_get_all(token, "/reps", filters)
 }
 
-
-#' Get All Tracked Reps
+#' Get All Tracked Reps (deprecated)
 #'
-#'Get all tracked reps for a team on a specific data
+#' API v2 has one rep resource, so this now returns the same as \code{\link{EF_GetAllTrackedReps}}.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
-#' @param date Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).
-#' @return Returns a data frame with the following columns:
-#' \describe{
-#'   \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-#'   \item{Time}{`character` — Time the lift was performed (HH:MM)}
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Exercise}{`character` — Name of the exercise performed}
-#'   \item{SetNumber}{`integer` — Set number within the session}
-#'   \item{RepNumber}{`integer` — Repetition number within the set}
-#'   \item{LoadFactor}{`numeric` — Load factor used in the lift}
-#'   \item{ActualWeight}{`numeric` — Actual weight lifted (kg)}
-#'   \item{AverageVelocity}{`numeric` — Average bar velocity (m/s)}
-#'   \item{PeakVelocity}{`numeric` — Peak bar velocity (m/s)}
-#'   \item{AveragePower}{`numeric` — Average power output (W)}
-#'   \item{PeakPower}{`numeric` — Peak power output (W)}
-#'   \item{ActualRest}{`integer` — Rest duration before the lift (seconds)}
-#'   \item{ReactionTimeInMS}{`integer` — Reaction time in milliseconds}
-#'   \item{Work}{`numeric` — Total work performed (Joules)}
-#'   \item{TrackerClassificationId}{`integer` — Internal classification ID}
-#'   \item{ExerciseId}{`integer` — Internal exercise identifier}
-#'   \item{ExerciseName}{`character` — Full name of the exercise}
-#'   \item{TimeToPeak}{`numeric` — Time to reach peak velocity (s)}
-#'   \item{TargetValue}{`numeric` — Target value set for the rep}
-#'   \item{TargetMetric}{`character` — Unit or type of the target metric}
-#'   \item{Duration}{`numeric` — Total duration of the rep (s)}
-#'   \item{EccentricAvgVelocity}{`numeric` — Average eccentric velocity (m/s)}
-#'   \item{EccentricAvgPower}{`numeric` — Average eccentric power (W)}
-#'   \item{EccentricPeakVelocity}{`numeric` — Peak eccentric velocity (m/s)}
-#'   \item{EccentricPeakPower}{`numeric` — Peak eccentric power (W)}
-#'   \item{EccentricDuration}{`numeric` — Duration of eccentric phase (s)}
-#' }
-#' @details
-#' NOTE:
-#' This call includes all fields provided in the EF Data Points reports but were not available in \code{\link{EF_GetAllTrackedReps}}
-#' If you don’t specify reportDate, the current date will be used. (These results do not include lifts that were entered through Paperless. For Paperless results, use GetAllSets with includePaperless set.)
-#'If you don’t specify reportDate, the current date will be used.(These results do not include lifts that were entered through Paperless. For Paperless results, use \code{\link{EF_GetAllSets}} with includePaperless set.)
-#'@export
-
-EF_GetAllTrackedReps3 <- function(token, date = ""){
-  request_url <- "/api/v1/GetAllTrackedReps3/"
-  if(date != ""){
-    date = convert_to_MMddyyyy(date)
-    request <- paste0(request_url, token@TEAM_ID, "/",date)
-
-  } else {
-    request <- paste0(request_url, token@TEAM_ID,"/")
-
-  }
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+#' @param date The workout day; see \code{\link{EF_GetAllTrackedReps}}.
+#' @param ... Other API filters and options; see \code{\link{EF_GetAllTrackedReps}}.
+#' @return See \code{\link{EF_GetAllTrackedReps}}.
+#' @export
+EF_GetAllTrackedReps3 <- function(token, date = "", ...) {
+  .Deprecated("EF_GetAllTrackedReps")
+  EF_GetAllTrackedReps(token, date, ...)
 }
-
 
 #' Get all Sets
 #'
-#'Get all sets for a team on a specific date
+#' Get the completed sets for a team, on one workout day by default. Requires the ReadSets scope.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
-#' @param date Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).
-#' @param includePaperless Include reps that were inputed through Paperless. 1 = True, 0 = False. Defaults to beign True.
-#' @description
-#' NOTE:
-#' 1 sets includePaperless to true, and 0 sets it to false.
-#' If you don’t specify reportDate, the current date will be used.
-#' If you don’t specify includePaperless, the option will be set to true.
-#' @return Returns a data frame with the following columns:
+#' @param date The workout day, as a Date or a string such as \code{"2025-07-28"} or
+#'   \code{"07/28/2025"}. Defaults to the current date.
+#' @param includePaperless Include sets entered through Paperless. 1 = True, 0 = False. Defaults to True.
+#' @param ... Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+#'   \code{sessionId}, \code{sort}. For a range of days pass \code{dateAfter} and \code{dateBefore}
+#'   instead of \code{date}; the end is exclusive and a range spans at most 366 days. Pass
+#'   \code{hasResults = FALSE} for sets not done yet, or \code{hasResults = NULL} for every set.
+#' @return Returns a data frame with one row per set. Join \code{athleteId} to
+#'   \code{\link{EF_GetAthleteInfo}} and \code{exerciseId} to \code{\link{EF_GetExercises}} for names.
 #' \describe{
-#'   \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-#'   \item{Time}{`character` — Time the lift was performed (HH:MM)}
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Exercise}{`character` — Name of the exercise performed}
-#'   \item{SetNumber}{`integer` — Set number within the session}
-#'   \item{RepsAssigned}{`integer` — Number of repetitions assigned}
-#'   \item{RepsCompleted}{`integer` — Number of repetitions completed}
-#'   \item{LoadFactor}{`numeric` — Load factor used in the lift}
-#'   \item{ActualWeight}{`numeric` — Actual weight lifted (kg)}
-#'   \item{AverageVelocity}{`numeric` — Average bar velocity (m/s)}
-#'   \item{PeakVelocity}{`numeric` — Peak bar velocity (m/s)}
-#'   \item{AveragePower}{`numeric` — Average power output (W)}
-#'   \item{PeakPower}{`numeric` — Peak power output (W)}
-#'   \item{ActualRest}{`integer` — Rest duration before the lift (seconds)}
-#'   \item{ReactionTimeInMS}{`integer` — Reaction time before lift initiation (milliseconds)}
-#'   \item{Work}{`numeric` — Total work performed during the rep (Joules)}
+#'   \item{id}{`numeric` - Unique set identifier}
+#'   \item{athleteId, teamId, sessionId, exerciseId}{`numeric` - What the set belongs to}
+#'   \item{date}{`character` - Workout day (YYYY-MM-DD)}
+#'   \item{exerciseNumber, supersetPosition, setNumber}{`integer` - Position on the workout card}
+#'   \item{repsAssigned}{`integer` - Repetitions assigned, NA for a max-reps set}
+#'   \item{isMaxReps}{`logical` - Whether the set is as many reps as possible}
+#'   \item{weight}{`numeric` - Weight assigned, in the exercise's weight unit}
+#'   \item{loadFactor}{`numeric` - Load factor assigned, NA for a bodyweight set}
+#'   \item{isBodyweight}{`logical` - Whether the set is bodyweight}
+#'   \item{targetMetric, targetBasis, targetMin, targetMax}{The prescribed target, NA when none}
+#'   \item{hasResults}{`logical` - Whether the set has been done}
+#'   \item{occurredAtLocal}{`character` - When it happened, on the rack's clock}
+#'   \item{repsCompleted}{`integer` - Repetitions completed}
+#'   \item{actualWeight}{`numeric` - Weight lifted, in the exercise's weight unit}
+#'   \item{actualRest}{`integer` - Rest before the set (seconds)}
+#'   \item{isTracked}{`logical` - TRUE when measured at the rack, FALSE when Paperless}
+#'   \item{repCount}{`integer` - Reps the rack captured}
+#'   \item{avgVelocity, peakVelocity}{`numeric` - Bar velocity (m/s), NA when not tracked}
+#'   \item{avgPower, peakPower}{`numeric` - Power output (W), NA when not tracked}
+#'   \item{work}{`numeric` - Work performed (J), NA when not tracked}
+#'   \item{reactionTimeMs}{`integer` - Reaction time (ms), NA when not tracked}
+#'   \item{reps}{`list` - A data frame of the set's reps, with no rows when not tracked}
+#' }
+#' @examples
+#' \dontrun{
+#' # Completed sets for today, then for one workout day
+#' sets <- EF_GetAllSets(token)
+#' sets <- EF_GetAllSets(token, "08/03/2026")
+#'
+#' # Only sets tracked at the rack
+#' sets <- EF_GetAllSets(token, "08/03/2026", includePaperless = 0)
+#'
+#' # Two athletes across a month, in one call
+#' sets <- EF_GetAllSets(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01",
+#'                       athleteId = c(6, 13))
+#'
+#' # The reps of the first set
+#' sets$reps[[1]]
+#'
+#' # What is on the card but not done yet
+#' planned <- EF_GetAllSets(token, "08/03/2026", hasResults = FALSE)
 #' }
 #' @export
-EF_GetAllSets <- function(token, date = "", includePaperless = ""){
+EF_GetAllSets <- function(token, date = "", includePaperless = "", ...) {
   includePaperless <- as.character(includePaperless)
-  if (!(includePaperless %in% c("1", "0", ""))){
-    stop("Error: Input must be 1, 0 or ''")
+  if (!(includePaperless %in% c("1", "0", ""))) {
+    stop("includePaperless must be 1, 0 or ''", call. = FALSE)
   }
-  request_url <- "/api/v1/GetAllSets/"
-  if(date != ""){
-    date = convert_to_MMddyyyy(date)
-    request <- paste0(request_url, token@TEAM_ID, "/",date, "/", includePaperless)
-
-  } else {
-    request <- paste0(request_url, token@TEAM_ID,"/", includePaperless)
-
+  filters <- utils::modifyList(list(hasResults = TRUE), ef_check_filters(list(...)))
+  if (includePaperless == "0") {
+    filters$trackedOnly <- TRUE
   }
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+  filters <- ef_date_window(date, ef_team_filter(token, filters))
+  ef_get_all(token, "/sets", filters)
 }
 
 #' Get all 1 Rep Max for Entire Team
 #'
-#' Get all current 1RMs for a team
+#' Get each athlete's current 1RM per exercise for the token's team. Requires the ReadOneRMs scope.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
+#' @param ... Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+#'   \code{isPredicted}, \code{sort}. \code{dateBefore} answers "what was the max as of then".
 #' @return Returns a data frame with the following columns:
 #' \describe{
-#'   \item{Date}{`character` — Date of the record (MM-DD-YYYY format)}
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Exercise}{`character` — Name of the exercise performed}
-#'   \item{Result}{`numeric` — Recorded result or output metric}
+#'   \item{id}{`numeric` - Unique identifier of the max}
+#'   \item{athleteId, exerciseId, teamId}{`numeric` - What the max belongs to}
+#'   \item{result}{`numeric` - The max, in the exercise's weight unit}
+#'   \item{isPredicted}{`logical` - TRUE when predicted by EliteForm, FALSE when entered by a coach}
+#'   \item{date}{`character` - Date of the max (YYYY-MM-DD)}
+#' }
+#' @examples
+#' \dontrun{
+#' maxes <- EF_Get1RMs(token)
+#'
+#' # Only coach-entered maxes, as they stood on July 1
+#' maxes <- EF_Get1RMs(token, isPredicted = FALSE, dateBefore = "2026-07-01")
 #' }
 #' @export
-
-
-EF_Get1RMs <- function(token){
-
-  request <- paste0("api/v1/get1rms/", token@TEAM_ID)
-  print(request)
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+EF_Get1RMs <- function(token, ...) {
+  filters <- ef_team_filter(token, ef_check_filters(list(...)))
+  ef_get_all(token, "/one-rms", filters)
 }
 
 #' Get all Power 1 Rep Max for Entire Team
 #'
-#' Get all current Power 1 Rep max.
+#' Get each athlete's current Power 1RM per exercise for the token's team. Requires the ReadOneRMs scope.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
+#' @param ... Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+#'   \code{sort}. \code{dateBefore} answers "what was the max as of then".
 #' @return Returns a data frame with the following columns:
 #' \describe{
-#'   \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Exercise}{`character` — Name of the exercise performed}
-#'   \item{AveragePower}{`numeric` — Average power output (Watts)}
-#'   \item{PeakPower}{`numeric` — Peak power output (Watts)}
+#'   \item{id}{`numeric` - Unique identifier of the max}
+#'   \item{athleteId, exerciseId, teamId}{`numeric` - What the max belongs to}
+#'   \item{averagePower}{`numeric` - Average power output (W)}
+#'   \item{peakPower}{`numeric` - Peak power output (W)}
+#'   \item{date}{`character` - Date of the max (YYYY-MM-DD)}
+#' }
+#' @examples
+#' \dontrun{
+#' power_maxes <- EF_GetPower1RMs(token)
+#'
+#' # One exercise
+#' power_maxes <- EF_GetPower1RMs(token, exerciseId = 95)
 #' }
 #' @export
-
-EF_GetPower1RMs <- function(token){
-
-  request <- paste0("api/v1/getpower1rms/", token@TEAM_ID)
-  print(request)
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+EF_GetPower1RMs <- function(token, ...) {
+  filters <- ef_team_filter(token, ef_check_filters(list(...)))
+  ef_get_all(token, "/power-one-rms", filters)
 }
 
 #' Get all Player Info for entire team
 #'
-#' Get basic information for all athletes on a team
+#' Get the roster of the token's team. Requires the ReadAthletes scope.
 #' @param token API Token Object (see \code{\link{EF_CreateAPIToken}})
-#' @param date Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).
+#' @param date Any date within the desired season, which supplies each athlete's classification, as
+#'   a Date or a string such as \code{"2025-07-28"} or \code{"07/28/2025"}. Defaults to the current date.
+#' @param ... Other API filters and options by name: \code{includeArchived}, \code{sort}.
 #' @return Returns a data frame with the following columns:
 #' \describe{
-#'   \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-#'   \item{LastName}{`character` — Athlete's last name}
-#'   \item{FirstName}{`character` — Athlete's first name}
-#'   \item{Positions}{`character` — Athlete's playing position(s)}
-#'   \item{Classification}{`character` — Athlete's roster classification (e.g., Freshman, Senior)}
-#'   \item{Categories}{`character` — Custom or predefined grouping categories (e.g., Returners, Injured)}
+#'   \item{athleteId}{`numeric` - Unique athlete identifier}
+#'   \item{firstName}{`character` - Athlete's first name}
+#'   \item{lastName}{`character` - Athlete's last name}
+#'   \item{archived}{`logical` - Whether the athlete is archived}
+#'   \item{positions}{`character` - Athlete's positions on this team, comma-separated}
+#'   \item{categories}{`character` - Athlete's categories on this team, comma-separated}
+#'   \item{classificationId}{`numeric` - Identifier of the classification}
+#'   \item{classificationName}{`character` - Athlete's classification (e.g., Freshman, Senior)}
 #' }
+#' @examples
+#' \dontrun{
+#' roster <- EF_GetAthleteInfo(token)
 #'
-#' @details If you don’t specify \code{date}, the current date will be used.
-#'   A date is required because the athletes belonging to a team can vary by season.
-#'   Any date within the desired season will work for specifying that season.
-#'
+#' # Classifications from last season, including archived athletes
+#' roster <- EF_GetAthleteInfo(token, "2025-10-01", includeArchived = TRUE)
+#' }
 #' @export
-EF_GetAthleteInfo <- function(token, date = ""){
-  request_url <- "/api/v1/getathleteinfo/"
-  if(date != ""){
-    date = convert_to_MMddyyyy(date)
-    request <- paste0(request_url, token@TEAM_ID, "/",date)
-
-  } else {
-    request <- paste0(request_url, token@TEAM_ID,"/")
-
+EF_GetAthleteInfo <- function(token, date = "", ...) {
+  if (is.na(token@TEAM_ID)) {
+    stop("Select a team first with EF_UpdateTokenTeam().", call. = FALSE)
   }
-  pull_json <- httr::GET(
-    url = paste0(token@url, request),
-    httr::add_headers(accept = "application", `X-ApiKey` = token@api_key)
-  )
-  df <- jsonlite::fromJSON(httr::content(pull_json, as="text"))
-  return(df)
+  filters <- ef_check_filters(list(...))
+  if (!identical(date, "")) {
+    filters$asOf <- date
+  }
+  roster <- ef_get_all(token, paste0("/teams/", format(token@TEAM_ID, scientific = FALSE, trim = TRUE), "/roster"), filters)
+  if (nrow(roster) > 0) {
+    roster$positions <- ef_collapse_names(roster$positions)
+    roster$categories <- ef_collapse_names(roster$categories)
+  }
+  roster
 }
