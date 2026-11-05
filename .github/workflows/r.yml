@@ -28,6 +28,10 @@ jobs:
           r-version: ${{ matrix.r-version }}
           use-public-rspm: true
 
+      # R 4.1.1 builds the curl package from source, which needs the libcurl headers.
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+
       - name: Install dependencies
         run: |
           install.packages(c("remotes","rcmdcheck","rmarkdown","knitr","httr","jsonlite","methods"))
