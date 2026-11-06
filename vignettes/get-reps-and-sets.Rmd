@@ -14,120 +14,104 @@ knitr::opts_chunk$set(
 )
 ```
 
-
-This Guide will explain how to access all sets and reps performed for a given team. 
-
-
+This Guide will explain how to access all sets and reps performed for a given team.
 
 # Set up API Token
 
-Below is the code to set up your API Token. Please reference the [Get Started Guide](getting-started.html).
+Below is the code to set up your API Token. Please reference the [Get Started Guide](getting-started.Rmd).
+
 ```{r setup, eval = FALSE}
 # Load the eliteformR package
 library(eliteformR)
 
-API_key <- "YOUR-API-KEY-HERE"
-URL <- "https://your_team_url_eliteform.com"
-
-token <- EF_CreateAPIToken(URL, API_key)
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
 
 # Download Team List
 team_list_df <- EF_GetTeamsList(token)
 
 # Update the Token with the Selected Team ID
-# TeamId should be as.numeric()
-token <- EF_UpdateTokenTeam(token, team_list_df$TeamId[1])
-# or 
+token <- EF_UpdateTokenTeam(token, team_list_df$id[1])
+# or
 # token <- EF_UpdateTokenTeam(token, 111)
 ```
 
 # Get All Sets
 
-You can get all sets for a team on a specified date. You can use the command `EF_GetAllSets()` and just include the Token if you would like to get all sets, including paperless, for the current date. 
-To specifiy a date include the "date =" argument and have you date as a string in any of these formats: "%m/%d/%Y", "%m-%d-%Y", "%m%d%Y", "%Y/%m/%d", "%Y-%m-%d", "%Y%m%d". 
-Finally, if you do not want to includePaperless, set the "includePaperless =" argument to 0. It will default to yes if nothing is included, or you could instead manually set it to use by selecting "includePaperless = 1"
+`EF_GetAllSets()` returns the completed sets for a team on one workout day, which is the current date if you only include the Token. To specify a date, include the `date` argument as a Date or as a string in any of these formats: "%m/%d/%Y", "%m-%d-%Y", "%m%d%Y", "%Y/%m/%d", "%Y-%m-%d", "%Y%m%d".
+
+To leave out sets entered through Paperless, set `includePaperless` to 0.
 
 ```{r, eval = FALSE}
-# Get All Sets
-# Defaults to the current date and to include paperless if only including Token
+# Completed sets for the current date, including Paperless
 all_sets_df <- EF_GetAllSets(token)
 
-# Get all sets on a Date. Date can be in any of these formats "%m/%d/%Y", "%m-%d-%Y", "%m%d%Y", "%Y/%m/%d", "%Y-%m-%d", "%Y%m%d"
-all_sets_df <-EF_GetAllSets(token, "07/22/2025")
+# Completed sets on a date
+all_sets_df <- EF_GetAllSets(token, "08/03/2026")
 
-# Get All sets on a date, not including Paperless. The includePaperless variable must either be 1 for yes, 0 for no, or omitted from the function. 
-all_sets_df <-EF_GetAllSets(token, "07/22/2025", includePaperless = 0)
-
-all_sets_df <-EF_GetAllSets(token, "07/22/2025", includePaperless = 0)
-
-all_sets_df
-
-#    AverageVelocity PeakVelocity AveragePower PeakPower      Date             Time AthleteId     LastName FirstName    Exercise SetNumber RepsAssigned RepsCompleted LoadFactor ActualWeight ActualRest ReactionTimeInMS    Work
-# 1         0.471111     0.921111     650.2178 1266.5467 7/22/2025 11:41:13.6319597      1111       Player         1 BENCH PRESS         5            1             9      0.875          310        353                0 7107.65
-# 2         0.465000     1.423333     556.4000 1710.5250 7/22/2025 11:40:26.4072519      1112       Player         2 BENCH PRESS         5            1             6      0.875          270        384                0 3652.91
-# 3         0.360000     0.748571     559.8743 1164.8600 7/22/2025 11:39:37.1249414      1113       Player         3 BENCH PRESS         5            1             7      0.875          350        239                0 5641.98
-# 4         0.425000     1.268333     634.3500 1889.9683 7/22/2025 11:39:36.0497881      1114       Player         4 BENCH PRESS         5            1             6      0.875          335        299                0 5150.81
-# 5         0.432857     0.895714     547.7771 1134.5086 7/22/2025 11:39:33.7107749      1115       Player         5 BENCH PRESS         5            1             7      0.875          285        344                0 4153.00
-# 6         0.440000     1.023333     715.0000 1658.9800 7/22/2025 11:39:29.0596346      1116       Player         6 BENCH PRESS         5            1             3      0.875          365        210                0 2646.26
-
+# Only sets tracked at the rack
+all_sets_df <- EF_GetAllSets(token, "08/03/2026", includePaperless = 0)
 ```
 
+A max-reps set has `isMaxReps` TRUE and `repsAssigned` NA, and a bodyweight set has `isBodyweight` TRUE and `loadFactor` NA. Totals and averages over those columns can skip the NAs with `na.rm = TRUE`.
+
+## Filters and ranges
+
+Any other filter the API offers can be passed by name. To read a range of days, use `dateAfter` and `dateBefore` instead of `date`. `dateBefore` is exclusive, and a range can span at most 366 days. One call over a range uses far fewer requests than one call per day.
+
+```{r, eval = FALSE}
+# All of August for two athletes
+august_df <- EF_GetAllSets(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01", athleteId = c(6, 13))
+
+# One exercise
+bench_df <- EF_GetAllSets(token, "08/03/2026", exerciseId = 88)
+
+# Sets on the card that have not been done yet
+planned_df <- EF_GetAllSets(token, "08/03/2026", hasResults = FALSE)
+
+# Every set, done or not
+every_set_df <- EF_GetAllSets(token, "08/03/2026", hasResults = NULL)
+```
+
+## The reps of a set
+
+Each tracked set carries its own reps in the `reps` column, as a data frame. A Paperless set has a data frame with no rows.
+
+```{r, eval = FALSE}
+all_sets_df$reps[[2]][, c("repNumber", "avgVelocity", "peakVelocity", "avgPower")]
+
+#   repNumber avgVelocity peakVelocity avgPower
+# 1         1        0.62         0.95    410.3
+# 2         2        0.58         0.90    395.0
+```
+
+## Targets
+
+When the workout prescribes a velocity, power or work target, the set carries it in `targetMetric`, `targetBasis`, `targetMin` and `targetMax`. `targetMetric` names the rep column the target applies to, and `targetBasis` says whether the numbers are `absolute` or a fraction of one of the athlete's bests. All four are NA when no target was prescribed.
 
 # Get All Reps
 
-If you want to get all the reps the team performs on a single day, there are two functions to choose from. `EF_GetAllTrackedReps()` is the base function that retrieves all reps for a specific date. If you want to include fields provided in the EF Data Points Report that are not already available in `EF_GetAllTrackedReps()`, use the function `EF_GetAllTrackedReps3()`. Like in getting all sets, To specifiy a date include the "date =" argument and have you date as a string in any of these formats: "%m/%d/%Y", "%m-%d-%Y", "%m%d%Y", "%Y/%m/%d", "%Y-%m-%d", "%Y%m%d". If no date is provided, it will default to the current date. 
+`EF_GetAllTrackedReps()` returns one row per rep tracked at the rack, with the set's context on every row. It takes the same `date` and filters as `EF_GetAllSets()`, plus `setId`. Paperless sets have no reps. Use `EF_GetAllSets()` for those.
 
-```{r, eval= FALSE}
-
-# Get all Reps
-# Defaults to Current Date
-
+```{r, eval = FALSE}
+# Defaults to the current date
 all_reps_df <- EF_GetAllTrackedReps(token)
-all_reps_df <- EF_GetAllTrackedReps(token, date = "07/22/2025")
+all_reps_df <- EF_GetAllTrackedReps(token, date = "08/03/2026")
 
-#       Exercise      Date             Time AthleteId    LastName FirstName SetNumber RepNumber LoadFactor ActualWeight AverageVelocity PeakVelocity AveragePower PeakPower ActualRest ReactionTimeInMS   Work
-# 1  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         9      0.875          310            0.21         0.82       282.89   1124.43          0                0 792.81
-# 2  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         8      0.875          310            0.38         0.95       530.71   1306.43          0                0 768.80
-# 3  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         7      0.875          310            0.30         0.87       413.66   1194.80          0                0 773.77
-# 4  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         6      0.875          310            0.50         0.98       684.19   1350.46          0                0 809.33
-# 5  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         5      0.875          310            0.55         0.98       760.02   1346.51          0                0 803.10
-# 6  BENCH PRESS 7/22/2025 11:41:13.6319597      1111      Player         1         5         4      0.875          310            0.57         0.99       783.23   1361.53          0                0 786.19
+all_reps_df[, c("setId", "athleteId", "exerciseId", "repNumber", "avgVelocity", "peakPower")]
 
-
-
-# Get all Reps including variables in EF Data Points Report
-# Defaults to Current Date
-all_reps3_df <- EF_GetAllTrackedReps3(token)
-all_reps3_df <- EF_GetAllTrackedReps3(token, date = "07/22/2025")
-
-#   TrackerClassificationId ExerciseId                   ExerciseName TimeToPeak TargetValue TargetValueMax      TargetMetric Duration EccentricAvgVelocity EccentricAvgPower EccentricPeakVelocity EccentricPeakPower EccentricDuration
-# 1                        3      11191                    BENCH PRESS       0.21        0.28           0.38 AvgVelocity (m/s)     0.99                 0.36            475.02                  0.73             964.27              1.32
-# 2                        3      11191                    BENCH PRESS       0.21        0.28           0.38 AvgVelocity (m/s)     1.10                 0.52            708.94                  0.82            1115.92              0.89
-# 3                        3      11191                    BENCH PRESS       0.22        0.28           0.38 AvgVelocity (m/s)     1.19                 0.46            624.05                  0.92            1247.06              1.15
-# 4                        3      11191                    BENCH PRESS       0.18        0.28           0.38 AvgVelocity (m/s)     1.24                 0.47            644.33                  1.02            1381.12              1.11
-# 5                        3      11191                    BENCH PRESS       0.19        0.28           0.38 AvgVelocity (m/s)     1.69                 0.53            720.31                  1.00            1356.94              0.97
-# 6                        3      11191                    BENCH PRESS       0.16        0.28           0.38 AvgVelocity (m/s)     1.36                 0.21            290.01                  0.83            1121.86              2.31
-
-#         Date             Time AthleteId     LastName FirstName SetNumber RepNumber LoadFactor ActualWeight AverageVelocity PeakVelocity AveragePower PeakPower ActualRest ReactionTimeInMS   Work
-# 1  7/22/2025 08:28:42.7786335      1111       Player         1         4         1      0.825          295            0.52         0.79       684.42   1035.43        135                0 678.65
-# 2  7/22/2025 08:33:39.9767364      1111       Player         1         5         1      0.875          305            0.47         0.83       643.70   1122.28        247                0 710.41
-# 3  7/22/2025 08:33:39.9767364      1111       Player         1         5         2      0.875          305            0.44         0.78       601.60   1052.62        247                0 715.00
-# 4  7/22/2025 08:33:39.9767364      1111       Player         1         5         3      0.875          305            0.43         0.85       586.30   1149.30        247                0 727.66
-# 5  7/22/2025 08:33:39.9767364      1111       Player         1         5         4      0.875          305            0.33         0.91       450.97   1239.65        247                0 764.16
-# 6  7/22/2025 08:33:39.9767364      1111       Player         1         5         5      0.875          305            0.41         0.74       551.04   1010.33        247                0 750.84
-
-
+#    setId athleteId exerciseId repNumber avgVelocity peakPower
+# 1 918224         6         88         1        0.62     620.8
+# 2 918224         6         88         2        0.58     600.2
 ```
 
+The eccentric columns (`eccentricAvgVelocity` and so on) are NA when the rack did not record the lowering phase.
 
+Reps do not carry the set's weight or rest. To add them, join on the set:
 
+```{r, eval = FALSE}
+sets_df <- EF_GetAllSets(token, "08/03/2026")
+reps_with_load_df <- merge(all_reps_df, sets_df[, c("id", "actualWeight", "loadFactor", "actualRest")],
+                           by.x = "setId", by.y = "id")
+```
 
-
-
-
-
-
-
-
-
-
+`EF_GetAllTrackedReps3()` is deprecated and returns the same as `EF_GetAllTrackedReps()`.

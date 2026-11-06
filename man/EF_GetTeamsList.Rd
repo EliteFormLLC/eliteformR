@@ -12,16 +12,15 @@ EF_GetTeamsList(token)
 \value{
 A data frame with the following columns:
 \describe{
-  \item{TeamId}{`numeric` (long) — Team unique identifier}
-  \item{Name}{`character` (string) — Team Name}
+  \item{id}{`numeric` - Team unique identifier}
+  \item{name}{`character` - Team Name}
 }
 }
 \description{
-Get team names and IDs for the entire user account.
+Get team names and IDs for the entire user account. Requires the ReadTeams scope.
 }
 \examples{
 \dontrun{
-Download Team List
-Team_list <- EF_GetTeamsList(token)
+teams <- EF_GetTeamsList(token)
 }
 }

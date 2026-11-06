@@ -4,22 +4,32 @@
 \alias{EF_Get1RMs}
 \title{Get all 1 Rep Max for Entire Team}
 \usage{
-EF_Get1RMs(token)
+EF_Get1RMs(token, ...)
 }
 \arguments{
 \item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
+
+\item{...}{Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+\code{isPredicted}, \code{sort}. \code{dateBefore} answers "what was the max as of then".}
 }
 \value{
 Returns a data frame with the following columns:
 \describe{
-  \item{Date}{`character` — Date of the record (MM-DD-YYYY format)}
-  \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-  \item{LastName}{`character` — Athlete's last name}
-  \item{FirstName}{`character` — Athlete's first name}
-  \item{Exercise}{`character` — Name of the exercise performed}
-  \item{Result}{`numeric` — Recorded result or output metric}
+  \item{id}{`numeric` - Unique identifier of the max}
+  \item{athleteId, exerciseId, teamId}{`numeric` - What the max belongs to}
+  \item{result}{`numeric` - The max, in the exercise's weight unit}
+  \item{isPredicted}{`logical` - TRUE when predicted by EliteForm, FALSE when entered by a coach}
+  \item{date}{`character` - Date of the max (YYYY-MM-DD)}
 }
 }
 \description{
-Get all current 1RMs for a team
+Get each athlete's current 1RM per exercise for the token's team. Requires the ReadOneRMs scope.
+}
+\examples{
+\dontrun{
+maxes <- EF_Get1RMs(token)
+
+# Only coach-entered maxes, as they stood on July 1
+maxes <- EF_Get1RMs(token, isPredicted = FALSE, dateBefore = "2026-07-01")
+}
 }

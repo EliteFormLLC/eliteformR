@@ -4,23 +4,32 @@
 \alias{EF_GetPower1RMs}
 \title{Get all Power 1 Rep Max for Entire Team}
 \usage{
-EF_GetPower1RMs(token)
+EF_GetPower1RMs(token, ...)
 }
 \arguments{
 \item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
+
+\item{...}{Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+\code{sort}. \code{dateBefore} answers "what was the max as of then".}
 }
 \value{
 Returns a data frame with the following columns:
 \describe{
-  \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-  \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-  \item{LastName}{`character` — Athlete's last name}
-  \item{FirstName}{`character` — Athlete's first name}
-  \item{Exercise}{`character` — Name of the exercise performed}
-  \item{AveragePower}{`numeric` — Average power output (Watts)}
-  \item{PeakPower}{`numeric` — Peak power output (Watts)}
+  \item{id}{`numeric` - Unique identifier of the max}
+  \item{athleteId, exerciseId, teamId}{`numeric` - What the max belongs to}
+  \item{averagePower}{`numeric` - Average power output (W)}
+  \item{peakPower}{`numeric` - Peak power output (W)}
+  \item{date}{`character` - Date of the max (YYYY-MM-DD)}
 }
 }
 \description{
-Get all current Power 1 Rep max.
+Get each athlete's current Power 1RM per exercise for the token's team. Requires the ReadOneRMs scope.
+}
+\examples{
+\dontrun{
+power_maxes <- EF_GetPower1RMs(token)
+
+# One exercise
+power_maxes <- EF_GetPower1RMs(token, exerciseId = 95)
+}
 }

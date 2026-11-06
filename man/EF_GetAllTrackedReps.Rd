@@ -4,29 +4,51 @@
 \alias{EF_GetAllTrackedReps}
 \title{Get All Tracked Reps}
 \usage{
-EF_GetAllTrackedReps(token, date = "")
+EF_GetAllTrackedReps(token, date = "", ...)
 }
 \arguments{
 \item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
 
-\item{date}{Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).}
+\item{date}{The workout day, as a Date or a string such as \code{"2025-07-28"} or
+\code{"07/28/2025"}. Defaults to the current date.}
+
+\item{...}{Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+\code{sessionId}, \code{setId}, \code{sort}. For a range of days pass \code{dateAfter} and
+\code{dateBefore} instead of \code{date}; the end is exclusive and a range spans at most 366 days.}
 }
 \value{
-Returns a data frame with the following columns:
+Returns a data frame with one row per rep. Join \code{athleteId} to
+  \code{\link{EF_GetAthleteInfo}} and \code{exerciseId} to \code{\link{EF_GetExercises}} for names.
 \describe{
-  \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-  \item{Time}{`character` — Time the lift was performed (HH:MM)}
-  \item{AthleteId}{`numeric` — Unique athlete identifier}
-  \item{LastName}{`character` — Athlete's last name}
-  \item{FirstName}{`character` — Athlete's first name}
-  \item{Exercise}{`character` — Name of the exercise performed}
-  \item{Reps}{`integer` — Number of repetitions tracked}
-  \item{PeakVelocity}{`numeric` — Peak bar velocity (m/s)}
+  \item{id}{`numeric` - Unique rep identifier}
+  \item{setId, athleteId, teamId, sessionId, exerciseId}{`numeric` - What the rep belongs to}
+  \item{date}{`character` - Workout day (YYYY-MM-DD)}
+  \item{exerciseNumber, supersetPosition, setNumber, repNumber}{`integer` - Position on the workout card}
+  \item{occurredAtLocal}{`character` - When the set happened, on the rack's clock}
+  \item{targetMetric, targetBasis, targetMin, targetMax}{The target the rep was judged against, NA when none}
+  \item{duration}{`numeric` - Duration of the rep (s)}
+  \item{avgVelocity, peakVelocity}{`numeric` - Bar velocity (m/s)}
+  \item{avgPower, peakPower}{`numeric` - Power output (W)}
+  \item{work}{`numeric` - Work performed (J)}
+  \item{reactionTimeMs}{`integer` - Reaction time (ms)}
+  \item{eccentricDuration, eccentricAvgVelocity, eccentricPeakVelocity, eccentricAvgPower, eccentricPeakPower, eccentricWork}{`numeric` - The lowering phase, NA when not recorded}
 }
 }
 \description{
-Get all tracked reps for a team on a specific date.
+Get every rep tracked at the rack for a team, on one workout day by default. Paperless sets have
+no reps; use \code{\link{EF_GetAllSets}} for those. Requires the ReadReps or ReadSets scope.
 }
-\details{
-If you don’t specify the date, the current date will be used.(These results do not include lifts that were entered through Paperless. For Paperless results, use \code{\link{EF_GetAllSets}} with includePaperless set.)
+\examples{
+\dontrun{
+# Reps for today, then for one workout day
+reps <- EF_GetAllTrackedReps(token)
+reps <- EF_GetAllTrackedReps(token, "08/03/2026")
+
+# One athlete's reps of one exercise across a month
+reps <- EF_GetAllTrackedReps(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01",
+                             athleteId = 6, exerciseId = 88)
+
+# Each athlete's fastest rep
+aggregate(peakVelocity ~ athleteId, data = reps, FUN = max)
+}
 }

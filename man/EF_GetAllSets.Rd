@@ -4,44 +4,69 @@
 \alias{EF_GetAllSets}
 \title{Get all Sets}
 \usage{
-EF_GetAllSets(token, date = "", includePaperless = "")
+EF_GetAllSets(token, date = "", includePaperless = "", ...)
 }
 \arguments{
 \item{token}{API Token Object (see \code{\link{EF_CreateAPIToken}})}
 
-\item{date}{Input date as a string in the format \code{"\%m-\%d-\%Y"} (e.g., \code{"07-28-2025"}).}
+\item{date}{The workout day, as a Date or a string such as \code{"2025-07-28"} or
+\code{"07/28/2025"}. Defaults to the current date.}
 
-\item{includePaperless}{Include reps that were inputed through Paperless. 1 = True, 0 = False. Defaults to beign True.}
+\item{includePaperless}{Include sets entered through Paperless. 1 = True, 0 = False. Defaults to True.}
+
+\item{...}{Other API filters and options by name: \code{athleteId} (up to 200), \code{exerciseId},
+\code{sessionId}, \code{sort}. For a range of days pass \code{dateAfter} and \code{dateBefore}
+instead of \code{date}; the end is exclusive and a range spans at most 366 days. Pass
+\code{hasResults = FALSE} for sets not done yet, or \code{hasResults = NULL} for every set.}
 }
 \value{
-Returns a data frame with the following columns:
+Returns a data frame with one row per set. Join \code{athleteId} to
+  \code{\link{EF_GetAthleteInfo}} and \code{exerciseId} to \code{\link{EF_GetExercises}} for names.
 \describe{
-  \item{Date}{`character` — Date of the lift (MM-DD-YYYY format)}
-  \item{Time}{`character` — Time the lift was performed (HH:MM)}
-  \item{AthleteId}{`numeric` — Unique athlete identifier (long)}
-  \item{LastName}{`character` — Athlete's last name}
-  \item{FirstName}{`character` — Athlete's first name}
-  \item{Exercise}{`character` — Name of the exercise performed}
-  \item{SetNumber}{`integer` — Set number within the session}
-  \item{RepsAssigned}{`integer` — Number of repetitions assigned}
-  \item{RepsCompleted}{`integer` — Number of repetitions completed}
-  \item{LoadFactor}{`numeric` — Load factor used in the lift}
-  \item{ActualWeight}{`numeric` — Actual weight lifted (kg)}
-  \item{AverageVelocity}{`numeric` — Average bar velocity (m/s)}
-  \item{PeakVelocity}{`numeric` — Peak bar velocity (m/s)}
-  \item{AveragePower}{`numeric` — Average power output (W)}
-  \item{PeakPower}{`numeric` — Peak power output (W)}
-  \item{ActualRest}{`integer` — Rest duration before the lift (seconds)}
-  \item{ReactionTimeInMS}{`integer` — Reaction time before lift initiation (milliseconds)}
-  \item{Work}{`numeric` — Total work performed during the rep (Joules)}
+  \item{id}{`numeric` - Unique set identifier}
+  \item{athleteId, teamId, sessionId, exerciseId}{`numeric` - What the set belongs to}
+  \item{date}{`character` - Workout day (YYYY-MM-DD)}
+  \item{exerciseNumber, supersetPosition, setNumber}{`integer` - Position on the workout card}
+  \item{repsAssigned}{`integer` - Repetitions assigned, NA for a max-reps set}
+  \item{isMaxReps}{`logical` - Whether the set is as many reps as possible}
+  \item{weight}{`numeric` - Weight assigned, in the exercise's weight unit}
+  \item{loadFactor}{`numeric` - Load factor assigned, NA for a bodyweight set}
+  \item{isBodyweight}{`logical` - Whether the set is bodyweight}
+  \item{targetMetric, targetBasis, targetMin, targetMax}{The prescribed target, NA when none}
+  \item{hasResults}{`logical` - Whether the set has been done}
+  \item{occurredAtLocal}{`character` - When it happened, on the rack's clock}
+  \item{repsCompleted}{`integer` - Repetitions completed}
+  \item{actualWeight}{`numeric` - Weight lifted, in the exercise's weight unit}
+  \item{actualRest}{`integer` - Rest before the set (seconds)}
+  \item{isTracked}{`logical` - TRUE when measured at the rack, FALSE when Paperless}
+  \item{repCount}{`integer` - Reps the rack captured}
+  \item{avgVelocity, peakVelocity}{`numeric` - Bar velocity (m/s), NA when not tracked}
+  \item{avgPower, peakPower}{`numeric` - Power output (W), NA when not tracked}
+  \item{work}{`numeric` - Work performed (J), NA when not tracked}
+  \item{reactionTimeMs}{`integer` - Reaction time (ms), NA when not tracked}
+  \item{reps}{`list` - A data frame of the set's reps, with no rows when not tracked}
 }
 }
 \description{
-NOTE:
-1 sets includePaperless to true, and 0 sets it to false.
-If you don’t specify reportDate, the current date will be used.
-If you don’t specify includePaperless, the option will be set to true.
+Get the completed sets for a team, on one workout day by default. Requires the ReadSets scope.
 }
-\details{
-Get all sets for a team on a specific date
+\examples{
+\dontrun{
+# Completed sets for today, then for one workout day
+sets <- EF_GetAllSets(token)
+sets <- EF_GetAllSets(token, "08/03/2026")
+
+# Only sets tracked at the rack
+sets <- EF_GetAllSets(token, "08/03/2026", includePaperless = 0)
+
+# Two athletes across a month, in one call
+sets <- EF_GetAllSets(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01",
+                      athleteId = c(6, 13))
+
+# The reps of the first set
+sets$reps[[1]]
+
+# What is on the card but not done yet
+planned <- EF_GetAllSets(token, "08/03/2026", hasResults = FALSE)
+}
 }

@@ -4,26 +4,24 @@
 \alias{EF_CreateAPIToken}
 \title{Elite Form API Login}
 \usage{
-EF_CreateAPIToken(url, api_key)
+EF_CreateAPIToken(api_key, url = "https://api.eliteform.com")
 }
 \arguments{
-\item{url}{URL string}
+\item{api_key}{API key string, in the form \code{ef_live_XXXXXXXXXXXX_your_secret_here}.}
 
-\item{api_key}{X-ApiKey string}
+\item{url}{API base URL. Only change this to test against another environment.}
 }
 \value{
-Returns an S4 Object that saves your X-ApiKey and URL and acts as a token for later pulls
+Returns an S4 Object that saves your API key and URL and acts as a token for later pulls
 }
 \description{
-Implements Elite Form's Login using your “X-ApiKey” and your custom Elite Form URL
+Creates the token every other function takes. Your organization comes from the key, so there is
+no organization URL any more. Keys issued for the original /api/v1 endpoints do not work here;
+ask your EliteForm representative for a new one.
 }
 \examples{
 \dontrun{
-# Create an API token with your EliteForm URL and API key
-token <- EF_CreateAPIToken("https://your.eliteform.com", "your-api-key")
-
-# Access components of the token
-token@url
-token@api_key
+# Keep the key out of your scripts, e.g. in an environment variable
+token <- EF_CreateAPIToken(Sys.getenv("ELITEFORM_API_KEY"))
 }
 }
