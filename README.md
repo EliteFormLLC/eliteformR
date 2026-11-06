@@ -37,9 +37,10 @@ token <- EF_UpdateTokenTeam(token, teams$id[1])
 sets <- EF_GetAllSets(token, "08/03/2026")
 sets <- EF_GetAllSets(token, dateAfter = "2026-08-01", dateBefore = "2026-09-01")
 
-# Add athlete and exercise names
-sets <- merge(sets, EF_GetAthleteInfo(token)[, c("athleteId", "firstName", "lastName")], by = "athleteId")
-sets <- merge(sets, EF_GetExercises(token)[, c("id", "name")], by.x = "exerciseId", by.y = "id")
+# Add athlete and exercise names, keeping sets from archived athletes
+roster <- EF_GetAthleteInfo(token, includeArchived = TRUE)
+sets <- merge(sets, roster[, c("athleteId", "firstName", "lastName")], by = "athleteId", all.x = TRUE)
+sets <- merge(sets, EF_GetExercises(token)[, c("id", "name")], by.x = "exerciseId", by.y = "id", all.x = TRUE)
 
 # Each athlete's fastest set
 aggregate(peakVelocity ~ firstName + lastName + name, data = sets, FUN = max)

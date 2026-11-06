@@ -72,6 +72,9 @@ Power.Team1RepMax_df
 Maxes identify athletes and exercises by ID. Join them to the roster and the exercise list for names and weight units:
 
 ```{r, eval = FALSE}
-named_df <- merge(Team1RepMax_df, EF_GetAthleteInfo(token)[, c("athleteId", "firstName", "lastName")], by = "athleteId")
-named_df <- merge(named_df, EF_GetExercises(token)[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id")
+roster_df <- EF_GetAthleteInfo(token, includeArchived = TRUE)
+named_df <- merge(Team1RepMax_df, roster_df[, c("athleteId", "firstName", "lastName")], by = "athleteId", all.x = TRUE)
+named_df <- merge(named_df, EF_GetExercises(token)[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id", all.x = TRUE)
 ```
+
+`includeArchived = TRUE` and `all.x = TRUE` keep maxes for archived athletes, which `merge()` would otherwise silently drop.

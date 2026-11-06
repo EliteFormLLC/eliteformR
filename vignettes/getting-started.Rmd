@@ -80,12 +80,14 @@ all_sets_df[, c("athleteId", "exerciseId", "setNumber", "repsCompleted", "actual
 Sets, reps and maxes identify athletes and exercises by ID. To add names, join them to the roster and the exercise list. These two calls need the `ReadAthletes` and `ReadTeams` scopes on your key.
 
 ```{r, eval = FALSE}
-roster_df <- EF_GetAthleteInfo(token)
+roster_df <- EF_GetAthleteInfo(token, includeArchived = TRUE)
 exercises_df <- EF_GetExercises(token)
 
-named_sets_df <- merge(all_sets_df, roster_df[, c("athleteId", "firstName", "lastName")], by = "athleteId")
-named_sets_df <- merge(named_sets_df, exercises_df[, c("id", "name")], by.x = "exerciseId", by.y = "id")
+named_sets_df <- merge(all_sets_df, roster_df[, c("athleteId", "firstName", "lastName")], by = "athleteId", all.x = TRUE)
+named_sets_df <- merge(named_sets_df, exercises_df[, c("id", "name")], by.x = "exerciseId", by.y = "id", all.x = TRUE)
 ```
+
+The roster leaves out archived athletes unless you pass `includeArchived = TRUE`, but their sets are still returned. `all.x = TRUE` keeps every set, with NA for any name that can't be found. Without it, `merge()` silently drops those rows.
 
 ## When There Is No Data
 
