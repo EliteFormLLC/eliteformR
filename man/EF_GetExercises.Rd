@@ -30,6 +30,6 @@ exercises <- EF_GetExercises(token)
 
 # Add exercise names to sets
 sets <- EF_GetAllSets(token, "08/03/2026")
-merge(sets, exercises[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id")
+merge(sets, exercises[, c("id", "name", "weightUnit")], by.x = "exerciseId", by.y = "id", all.x = TRUE)
 }
 }
