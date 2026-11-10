@@ -16,14 +16,17 @@ knitr::opts_chunk$set(
 
 This package is built to help build custom solutions using version 2 of EliteForm's API. It requires an EliteForm account and an API key, so please consult with your EliteForm representative first. Keys for the original `/api/v1` endpoints do not work with this version of the package. If you are moving a script from version 1, see `NEWS.md` for what to change.
 
-## Downloading Package
+## Installing the Package
 
-To download the eliteformR package, use devtools as seen below:
+Install eliteformR from GitHub with the remotes package:
 
 ```{r, eval = FALSE}
-# Install from GitHub
-# install.packages("devtools")
-devtools::install_github("EliteFormLLC/eliteformR")
+# install.packages("remotes")
+remotes::install_github("EliteFormLLC/eliteformR")
+
+# To also install these guides, so vignette(package = "eliteformR") lists them.
+# This is slower and needs pandoc, which RStudio includes.
+remotes::install_github("EliteFormLLC/eliteformR", build_vignettes = TRUE)
 ```
 
 ## Creating Token
