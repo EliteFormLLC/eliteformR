@@ -67,5 +67,11 @@ See the guides for more: [Getting Started](vignettes/getting-started.Rmd), [Reps
 # Moving from version 1
 Version 1 scripts need a new API key and a few changes, because columns are now `camelCase` and names come from a join. [NEWS.md](NEWS.md) lists them all. Your existing IDs still match, since v2 uses the same athlete, team and exercise IDs as v1.
 
+# Contributing and support
+Pull requests are welcome, with no promises; see [CONTRIBUTING.md](CONTRIBUTING.md). For help with the API, your key or your data, please contact EliteForm support or your EliteForm representative.
+
+# Credits
+eliteformR was created by [Matthew Wilcox](https://github.com/MatthewLeeWilcox), who wrote the original version for API v1.
+
 # R version
 eliteformR was built and tested on R version 4.1.1. It may run and function on earlier R versions; however, for an optimal experience, please upgrade to 4.1.1 or greater. 
