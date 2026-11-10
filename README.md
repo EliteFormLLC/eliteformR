@@ -15,11 +15,14 @@ developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.re
 eliteformR is an R package designed to provide easy interfacing with the [EliteForm](https://www.eliteform.com/) API. An EliteForm account and an API v2 key are required to utilize this package. Version 2.0.0 moved from the original `/api/v1` endpoints to API v2; see [NEWS.md](NEWS.md) for what to change in existing scripts.
 
 # Installation
-You can install version 2.0.0 of eliteformR from Github with: 
+You can install version 2.0.0 of eliteformR from GitHub with:
 ```r
-# Install from GitHub
-# install.packages("devtools")
-devtools::install_github("EliteFormLLC/eliteformR")
+# install.packages("remotes")
+remotes::install_github("EliteFormLLC/eliteformR")
+```
+This downloads, builds and installs the package; you don't need git. The guides aren't installed by default. To read them in R with `vignette(package = "eliteformR")`, install with `build_vignettes = TRUE`, which is slower and needs [pandoc](https://pandoc.org/) (RStudio includes it):
+```r
+remotes::install_github("EliteFormLLC/eliteformR", build_vignettes = TRUE)
 ```
 
 # Quick start
