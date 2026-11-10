@@ -9,7 +9,7 @@ version](https://img.shields.io/badge/R%3E%3D-4.1.1-6666ff.svg)](https://cran.r-
 [![Project Status: Active – The project has reached a stable, usable
 state and is being actively
 developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![packageversion](https://img.shields.io/badge/Package%20version-2.0.0-orange.svg?style=flat-square)](commits/master)
+[![packageversion](https://img.shields.io/badge/Package%20version-2.0.0-orange.svg?style=flat-square)](https://github.com/EliteFormLLC/eliteformR/commits/main)
 
 <!-- badges: end -->
 eliteformR is an R package designed to provide easy interfacing with the [EliteForm](https://www.eliteform.com/) API. An EliteForm account and an API v2 key are required to utilize this package. Version 2.0.0 moved from the original `/api/v1` endpoints to API v2; see [NEWS.md](NEWS.md) for what to change in existing scripts.
